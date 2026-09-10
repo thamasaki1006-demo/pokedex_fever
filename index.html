@@ -1,0 +1,1048 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>ポケモン図鑑 - POKÉDEX JP</title>
+  <!-- Tailwind CSS -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <!-- Google Fonts: Inter & M PLUS Rounded 1c for friendly Japanese aesthetics -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&family=M+PLUS+Rounded+1c:wght@400;500;700;800;900&display=swap" rel="stylesheet">
+  <!-- Tone.js for native retro/scifi sound synthesis -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/tone/14.8.49/Tone.min.js"></script>
+
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          fontFamily: {
+            sans: ['"M PLUS Rounded 1c"', 'Inter', 'sans-serif'],
+          },
+          colors: {
+            dex: {
+              red: '#E3350D',
+              darkred: '#9B1B04',
+              screen: '#1E293B',
+              accent: '#38BDF8',
+              gold: '#FACC15',
+            }
+          }
+        }
+      }
+    }
+  </script>
+  <style>
+    /* Custom scrollbar and subtle animations */
+    ::-webkit-scrollbar {
+      width: 6px;
+      height: 6px;
+    }
+    ::-webkit-scrollbar-track {
+      background: #0f172a;
+    }
+    ::-webkit-scrollbar-thumb {
+      background: #334155;
+      border-radius: 9999px;
+    }
+    ::-webkit-scrollbar-thumb:hover {
+      background: #475569;
+    }
+    .poke-shadow {
+      box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.3), 0 8px 10px -6px rgba(0, 0, 0, 0.3);
+    }
+    .hologram-grid {
+      background-size: 24px 24px;
+      background-image: 
+        linear-gradient(to right, rgba(56, 189, 248, 0.05) 1px, transparent 1px),
+        linear-gradient(to bottom, rgba(56, 189, 248, 0.05) 1px, transparent 1px);
+    }
+  </style>
+</head>
+
+<body class="bg-slate-950 text-slate-100 font-sans min-h-screen flex flex-col antialiased selection:bg-rose-500 selection:text-white">
+
+  <header class="sticky top-0 z-40 bg-slate-900/90 backdrop-blur-md border-b border-slate-800 shadow-lg">
+    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+      <div class="flex items-center justify-between h-16 sm:h-20">
+        
+        <!-- Logo & Pokédex Sensor Lights -->
+        <div class="flex items-center space-x-3 sm:space-x-4">
+          <!-- Main Lens (Rotom/Dex Sensor) -->
+          <div class="relative flex items-center justify-center">
+            <div class="w-10 h-10 sm:w-12 sm:h-12 rounded-full bg-gradient-to-tr from-sky-600 to-cyan-300 border-2 border-white shadow-lg shadow-sky-500/50 flex items-center justify-center animate-pulse">
+              <div class="w-4 h-4 rounded-full bg-white/80 filter blur-[1px]"></div>
+            </div>
+            <!-- Indicator mini lights -->
+            <div class="flex space-x-1.5 ml-2.5">
+              <span class="w-3 h-3 rounded-full bg-red-500 border border-white/50 shadow-sm shadow-red-500/50"></span>
+              <span class="w-3 h-3 rounded-full bg-yellow-400 border border-white/50 shadow-sm shadow-yellow-500/50"></span>
+              <span class="w-3 h-3 rounded-full bg-emerald-500 border border-white/50 shadow-sm shadow-emerald-500/50"></span>
+            </div>
+          </div>
+
+          <div class="pl-1">
+            <div class="flex items-center space-x-2">
+              <h1 class="text-xl sm:text-2xl font-black tracking-wider text-white">
+                ポケモン<span class="text-rose-500">図鑑</span>
+              </h1>
+              <span class="bg-rose-500/20 text-rose-400 text-[10px] font-bold px-2 py-0.5 rounded-full border border-rose-500/30">
+                全国版
+              </span>
+            </div>
+            <p class="text-xs text-slate-400 hidden sm:block">PokéAPI連動・公式日本語データベース</p>
+          </div>
+        </div>
+
+        <!-- Controls: Sound & Favorites Tab -->
+        <div class="flex items-center space-x-2 sm:space-x-3">
+          <button id="soundToggleBtn" onclick="toggleAudio()" class="p-2.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 transition-colors flex items-center gap-1.5 text-xs font-semibold border border-slate-700">
+            <span id="soundIcon">🔊</span>
+            <span class="hidden md:inline">サウンド: <span id="soundStatusText" class="text-emerald-400">ON</span></span>
+          </button>
+
+          <button id="favoritesTabBtn" onclick="toggleFavoritesFilter()" class="p-2.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 transition-colors flex items-center gap-1.5 text-xs font-semibold border border-slate-700">
+            <span class="text-amber-400">★</span>
+            <span class="hidden sm:inline">お気に入り</span>
+            <span id="favoritesBadge" class="bg-amber-400/20 text-amber-300 text-[10px] px-1.5 py-0.2 rounded-full border border-amber-400/40">0</span>
+          </button>
+        </div>
+
+      </div>
+    </div>
+  </header>
+
+  <main class="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-6 flex flex-col gap-6 hologram-grid">
+    
+    <!-- Filter Card -->
+    <div class="bg-slate-900/80 backdrop-blur rounded-2xl p-4 sm:p-5 border border-slate-800 shadow-xl flex flex-col gap-4">
+      
+      <!-- Top Row: Search Input & Generation Select -->
+      <div class="grid grid-cols-1 md:grid-cols-12 gap-3">
+        <!-- Search bar -->
+        <div class="md:col-span-8 relative">
+          <div class="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-slate-400">
+            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"></path></svg>
+          </div>
+          <input 
+            type="text" 
+            id="searchInput" 
+            oninput="handleSearch(this.value)"
+            placeholder="ポケモン名（日本語/英語）または 図鑑番号 (例: 25, ピカチュウ)..." 
+            class="w-full pl-11 pr-10 py-3 bg-slate-950/90 border border-slate-700 rounded-xl text-sm sm:text-base text-white placeholder-slate-500 focus:outline-none focus:border-rose-500 focus:ring-2 focus:ring-rose-500/20 transition-all shadow-inner"
+          >
+          <button id="clearSearchBtn" onclick="clearSearch()" class="hidden absolute inset-y-0 right-0 pr-3.5 flex items-center text-slate-400 hover:text-white">
+            ✕
+          </button>
+        </div>
+
+        <!-- Generation Selector -->
+        <div class="md:col-span-4">
+          <select id="genFilter" onchange="handleGenChange(this.value)" class="w-full py-3 px-4 bg-slate-950/90 border border-slate-700 rounded-xl text-sm sm:text-base text-white focus:outline-none focus:border-rose-500 focus:ring-2 focus:ring-rose-500/20 transition-all">
+            <option value="all">全世代 (全1025匹)</option>
+            <option value="gen1" selected>第1世代: カントー (#0001〜#0151)</option>
+            <option value="gen2">第2世代: ジョウト (#0152〜#0251)</option>
+            <option value="gen3">第3世代: ホウエン (#0252〜#0386)</option>
+            <option value="gen4">第4世代: シンオウ (#0387〜#0493)</option>
+            <option value="gen5">第5世代: イッシュ (#0494〜#0649)</option>
+            <option value="gen6">第6世代: カロス (#0650〜#0721)</option>
+            <option value="gen7">第7世代: アローラ (#0722〜#0809)</option>
+            <option value="gen8">第8世代: ガラル・ヒスイ (#0810〜#0905)</option>
+            <option value="gen9">第9世代: パルデア (#0906〜#1025)</option>
+          </select>
+        </div>
+      </div>
+
+      <!-- Type Filter Chips (Japanese Pokemon Types) -->
+      <div class="flex flex-col gap-2 pt-1 border-t border-slate-800/80">
+        <div class="flex items-center justify-between text-xs text-slate-400 font-semibold">
+          <span>タイプで絞り込み:</span>
+          <button onclick="resetTypeFilter()" id="resetTypeBtn" class="text-rose-400 hover:text-rose-300 transition-colors hidden">
+            リセット
+          </button>
+        </div>
+        <div id="typePillsContainer" class="flex flex-wrap gap-1.5 sm:gap-2">
+          <!-- Populated by JavaScript -->
+        </div>
+      </div>
+
+    </div>
+
+    <!-- Active Filter Summary & Result Count -->
+    <div class="flex items-center justify-between px-1 text-sm">
+      <div class="flex items-center gap-2">
+        <span class="text-slate-400">表示中のポケモン:</span>
+        <span id="resultCount" class="font-bold text-white bg-slate-800 px-2.5 py-0.5 rounded-full border border-slate-700 text-xs">
+          取得中...
+        </span>
+      </div>
+      <div id="statusIndicator" class="text-xs text-sky-400 animate-pulse flex items-center gap-1.5">
+        <span class="w-2 h-2 rounded-full bg-sky-400"></span>
+        <span>通信準備完了</span>
+      </div>
+    </div>
+
+    <!-- Pokémon Grid Container -->
+    <div id="pokemonGrid" class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-3 sm:gap-4">
+      <!-- Loading skeletons initially injected -->
+    </div>
+
+    <!-- Loading Sentinel / More Button -->
+    <div class="py-8 flex flex-col items-center justify-center gap-3">
+      <button 
+        id="loadMoreBtn" 
+        onclick="loadNextBatch()" 
+        class="hidden px-8 py-3 bg-gradient-to-r from-rose-600 to-rose-500 hover:from-rose-500 hover:to-rose-400 text-white font-bold rounded-xl shadow-lg shadow-rose-600/30 hover:shadow-rose-600/50 transition-all transform active:scale-95 text-sm sm:text-base border border-rose-400/30"
+      >
+        さらに読み込む
+      </button>
+      <div id="loaderSpinner" class="flex items-center gap-2 text-slate-400 text-sm py-4">
+        <div class="w-5 h-5 border-2 border-rose-500 border-t-transparent rounded-full animate-spin"></div>
+        <span>ポケモンデータを取得中...</span>
+      </div>
+    </div>
+
+  </main>
+
+  <!-- Pokémon Detail Modal -->
+  <div id="detailModal" class="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 bg-slate-950/80 backdrop-blur-md opacity-0 pointer-events-none transition-opacity duration-300">
+    <div class="relative w-full max-w-2xl bg-slate-900 border border-slate-700/80 rounded-3xl overflow-hidden shadow-2xl poke-shadow transform scale-95 transition-transform duration-300 max-h-[92vh] flex flex-col">
+      
+      <!-- Modal Header (Type Colored Background) -->
+      <div id="modalHeaderBg" class="relative p-5 sm:p-6 bg-gradient-to-b from-slate-800 to-slate-900 border-b border-slate-700/50 flex items-start justify-between">
+        <!-- Close Button -->
+        <button onclick="closeDetailModal()" class="absolute top-4 right-4 z-10 w-9 h-9 rounded-full bg-black/40 hover:bg-black/60 text-white flex items-center justify-center transition-colors">
+          ✕
+        </button>
+
+        <div class="flex flex-col gap-1">
+          <div class="flex items-center gap-2">
+            <span id="modalId" class="text-xs sm:text-sm font-black text-white/70 bg-black/30 px-2.5 py-0.5 rounded-full backdrop-blur-sm">
+              No.0001
+            </span>
+            <span id="modalGenera" class="text-xs font-semibold text-white/80">
+              たねポケモン
+            </span>
+          </div>
+          <h2 id="modalName" class="text-2xl sm:text-3xl font-black text-white tracking-wide">
+            フシギダネ
+          </h2>
+          <p id="modalEnName" class="text-xs text-white/60 font-medium">Bulbasaur</p>
+          
+          <!-- Types list -->
+          <div id="modalTypes" class="flex items-center gap-2 mt-2"></div>
+        </div>
+
+        <!-- Favorite Toggle & Cry Button inside modal -->
+        <div class="flex flex-col gap-2 items-end mt-1 mr-8">
+          <button id="modalFavBtn" onclick="toggleModalFavorite()" class="w-10 h-10 rounded-full bg-black/40 hover:bg-black/60 text-amber-300 flex items-center justify-center text-lg transition-transform active:scale-90 border border-white/10" title="お気に入り">
+            ★
+          </button>
+          <button id="modalCryBtn" onclick="playCurrentCry()" class="w-10 h-10 rounded-full bg-black/40 hover:bg-black/60 text-sky-300 flex items-center justify-center text-sm transition-transform active:scale-90 border border-white/10" title="なきごえを聞く">
+            🔊
+          </button>
+        </div>
+      </div>
+
+      <!-- Modal Body (Scrollable) -->
+      <div class="overflow-y-auto flex-1 p-5 sm:p-6 space-y-6">
+        
+        <!-- Artwork Showcase & Shiny toggle -->
+        <div class="relative flex flex-col items-center justify-center bg-slate-950/60 rounded-2xl p-4 border border-slate-800">
+          <div class="relative w-48 h-48 sm:w-56 sm:h-56 flex items-center justify-center">
+            <div id="modalArtworkGlow" class="absolute inset-0 rounded-full bg-rose-500/15 blur-2xl"></div>
+            <img id="modalImg" src="" alt="" class="relative z-10 max-w-full max-h-full object-contain filter drop-shadow-[0_10px_15px_rgba(0,0,0,0.5)] transition-all duration-300">
+          </div>
+          
+          <!-- Shiny Switcher -->
+          <div class="mt-3 flex items-center gap-2 bg-slate-900 px-3 py-1.5 rounded-full border border-slate-800 text-xs font-semibold">
+            <button id="viewNormalBtn" onclick="toggleModalShiny(false)" class="px-3 py-1 rounded-full bg-rose-600 text-white transition-all">通常色</button>
+            <button id="viewShinyBtn" onclick="toggleModalShiny(true)" class="px-3 py-1 rounded-full text-slate-400 hover:text-white transition-all">✨ 色違い</button>
+          </div>
+        </div>
+
+        <!-- Flavor Text (Japanese Dex Entry) -->
+        <div class="bg-slate-950/60 border border-slate-800/80 rounded-2xl p-4 relative">
+          <div class="text-[11px] font-bold text-rose-400 mb-1 flex items-center gap-1.5">
+            <span class="w-1.5 h-1.5 rounded-full bg-rose-500"></span>
+            <span>図鑑の解説文</span>
+          </div>
+          <p id="modalFlavorText" class="text-sm leading-relaxed text-slate-200">
+            データ読み込み中...
+          </p>
+        </div>
+
+        <!-- Body specs: Height & Weight -->
+        <div class="grid grid-cols-2 gap-3">
+          <div class="bg-slate-950/60 border border-slate-800 rounded-xl p-3 text-center">
+            <div class="text-xs text-slate-400 font-semibold mb-0.5">たかさ</div>
+            <div id="modalHeight" class="text-lg font-black text-white">0.7 m</div>
+          </div>
+          <div class="bg-slate-950/60 border border-slate-800 rounded-xl p-3 text-center">
+            <div class="text-xs text-slate-400 font-semibold mb-0.5">おもさ</div>
+            <div id="modalWeight" class="text-lg font-black text-white">6.9 kg</div>
+          </div>
+        </div>
+
+        <!-- Base Stats Section -->
+        <div class="bg-slate-950/60 border border-slate-800 rounded-2xl p-4">
+          <div class="flex items-center justify-between mb-3">
+            <div class="text-[11px] font-bold text-sky-400 flex items-center gap-1.5">
+              <span class="w-1.5 h-1.5 rounded-full bg-sky-400"></span>
+              <span>種族値 (ステータス)</span>
+            </div>
+            <div class="text-xs font-bold text-slate-300">
+              合計: <span id="modalStatTotal" class="text-white text-sm font-black">318</span>
+            </div>
+          </div>
+          
+          <div id="modalStatsBars" class="space-y-2.5 text-xs">
+            <!-- Stats bars injected via JS -->
+          </div>
+        </div>
+
+      </div>
+
+      <!-- Modal Footer -->
+      <div class="p-3 bg-slate-950 border-t border-slate-800 text-center text-xs text-slate-500">
+        PokéAPI 日本語ローカライズシステム搭載
+      </div>
+
+    </div>
+  </div>
+
+  <!-- Toast Notification Box -->
+  <div id="toast" class="fixed bottom-5 right-5 z-50 bg-slate-900/95 text-white px-4 py-2.5 rounded-xl border border-slate-700 shadow-2xl flex items-center gap-2 transform translate-y-20 opacity-0 transition-all duration-300 pointer-events-none text-sm font-medium">
+    <span id="toastIcon">💡</span>
+    <span id="toastMsg">通知メッセージ</span>
+  </div>
+
+  <script>
+    /* ==========================================================
+       1. TYPE DATA & COLOR PALETTES (JAPANESE OFFICIAL SYSTEM)
+       ========================================================== */
+    const POKEMON_TYPES = {
+      normal:   { name: 'ノーマル', bg: 'bg-[#949495]', text: 'text-white', hex: '#949495' },
+      fire:     { name: 'ほのお',   bg: 'bg-[#E53B18]', text: 'text-white', hex: '#E53B18' },
+      water:    { name: 'みず',     bg: 'bg-[#2681F0]', text: 'text-white', hex: '#2681F0' },
+      grass:    { name: 'くさ',     bg: 'bg-[#439837]', text: 'text-white', hex: '#439837' },
+      electric: { name: 'でんき',   bg: 'bg-[#F2B807]', text: 'text-slate-900', hex: '#F2B807' },
+      ice:      { name: 'こおり',   bg: 'bg-[#44BBD6]', text: 'text-slate-900', hex: '#44BBD6' },
+      fighting: { name: 'かくとう', bg: 'bg-[#E08C00]', text: 'text-white', hex: '#E08C00' },
+      poison:   { name: 'どく',     bg: 'bg-[#8F429B]', text: 'text-white', hex: '#8F429B' },
+      ground:   { name: 'じめん',   bg: 'bg-[#AC6D2C]', text: 'text-white', hex: '#AC6D2C' },
+      flying:   { name: 'ひこう',   bg: 'bg-[#73A4F8]', text: 'text-white', hex: '#73A4F8' },
+      psychic:  { name: 'エスパー', bg: 'bg-[#E94368]', text: 'text-white', hex: '#E94368' },
+      bug:      { name: 'むし',     bg: 'bg-[#7F9E10]', text: 'text-white', hex: '#7F9E10' },
+      rock:     { name: 'いわ',     bg: 'bg-[#A79C65]', text: 'text-white', hex: '#A79C65' },
+      ghost:    { name: 'ゴースト', bg: 'bg-[#6B4B74]', text: 'text-white', hex: '#6B4B74' },
+      dragon:   { name: 'ドラゴン', bg: 'bg-[#4C5B96]', text: 'text-white', hex: '#4C5B96' },
+      steel:    { name: 'はがね',   bg: 'bg-[#6EA0B7]', text: 'text-white', hex: '#6EA0B7' },
+      dark:     { name: 'あく',     bg: 'bg-[#443C3A]', text: 'text-white', hex: '#443C3A' },
+      fairy:    { name: 'フェアリー', bg: 'bg-[#E079A4]', text: 'text-white', hex: '#E079A4' },
+    };
+
+    const GENERATIONS = {
+      all:  { start: 1, end: 1025 },
+      gen1: { start: 1, end: 151 },
+      gen2: { start: 152, end: 251 },
+      gen3: { start: 252, end: 386 },
+      gen4: { start: 387, end: 493 },
+      gen5: { start: 494, end: 649 },
+      gen6: { start: 650, end: 721 },
+      gen7: { start: 722, end: 809 },
+      gen8: { start: 810, end: 905 },
+      gen9: { start: 906, end: 1025 },
+    };
+
+    // Core Application State
+    let currentGen = 'gen1';
+    let selectedType = null;
+    let searchQuery = '';
+    let isFavoritesOnly = false;
+    let soundEnabled = true;
+
+    // Data lists
+    let allPokemonEntries = []; // Master list of { id, name, url }
+    let filteredPokemonList = []; // Array of ids matching criteria
+    let renderedCount = 0;
+    const BATCH_SIZE = 24;
+
+    // Cache to prevent duplicate network calls
+    const pokemonDataCache = new Map(); // id -> basic pokemon data
+    const speciesDataCache = new Map(); // id -> species (japanese names, flavor text, genera)
+
+    // Favorites stored in LocalStorage
+    let favorites = new Set();
+    try {
+      const storedFavs = localStorage.getItem('pokedex_favorites');
+      if (storedFavs) {
+        favorites = new Set(JSON.parse(storedFavs));
+      }
+    } catch (e) {
+      console.warn('LocalStorage not available');
+    }
+
+    // Modal state
+    let activeModalPokemon = null;
+    let isShowingShiny = false;
+    let currentAudioElement = null;
+
+    // Tone.js Sound Synthesizer for Dex Interface Sounds
+    let dexSynth = null;
+    function initSynth() {
+      if (!dexSynth && window.Tone) {
+        dexSynth = new Tone.PolySynth(Tone.Synth, {
+          oscillator: { type: 'sine' },
+          envelope: { attack: 0.005, decay: 0.1, sustain: 0.01, release: 0.1 }
+        }).toDestination();
+        dexSynth.volume.value = -12;
+      }
+    }
+
+    function playToneSound(type) {
+      if (!soundEnabled) return;
+      try {
+        if (Tone.context.state !== 'running') {
+          Tone.start();
+        }
+        initSynth();
+        if (type === 'click') {
+          dexSynth.triggerAttackRelease('C6', '32n');
+        } else if (type === 'open') {
+          dexSynth.triggerAttackRelease(['G5', 'C6'], '16n');
+        } else if (type === 'fav') {
+          dexSynth.triggerAttackRelease(['E6', 'A6'], '16n');
+        }
+      } catch (err) {
+        // Ignore audio context autoplay restrictions
+      }
+    }
+
+    function toggleAudio() {
+      soundEnabled = !soundEnabled;
+      const status = document.getElementById('soundStatusText');
+      const icon = document.getElementById('soundIcon');
+      if (soundEnabled) {
+        status.textContent = 'ON';
+        status.className = 'text-emerald-400';
+        icon.textContent = '🔊';
+        showToast('サウンドを有効にしました', '🔊');
+        playToneSound('click');
+      } else {
+        status.textContent = 'OFF';
+        status.className = 'text-slate-500';
+        icon.textContent = '🔇';
+        showToast('サウンドをミュートしました', '🔇');
+      }
+    }
+
+    // Initialize & Fetch base entries from PokéAPI
+    async function initPokedex() {
+      renderTypeFilterPills();
+      updateFavoritesBadge();
+
+      try {
+        document.getElementById('statusIndicator').innerHTML = `
+          <span class="w-2 h-2 rounded-full bg-amber-400 animate-ping"></span>
+          <span>データ初期化中...</span>
+        `;
+        // Fetch list of all 1025 Pokemon
+        const res = await fetch('https://pokeapi.co/api/v2/pokemon?limit=1025');
+        const data = await res.json();
+        
+        allPokemonEntries = data.results.map((entry, index) => {
+          const id = index + 1;
+          return {
+            id,
+            name: entry.name,
+            url: entry.url
+          };
+        });
+
+        document.getElementById('statusIndicator').innerHTML = `
+          <span class="w-2 h-2 rounded-full bg-emerald-400"></span>
+          <span>オンライン</span>
+        `;
+
+        applyFilters();
+      } catch (err) {
+        console.error('Failed to load pokemon list', err);
+        document.getElementById('statusIndicator').innerHTML = `
+          <span class="w-2 h-2 rounded-full bg-rose-500"></span>
+          <span>接続エラー</span>
+        `;
+        showToast('データの取得に失敗しました。再読み込みしてください。', '⚠️');
+      }
+    }
+
+    function renderTypeFilterPills() {
+      const container = document.getElementById('typePillsContainer');
+      container.innerHTML = '';
+
+      Object.entries(POKEMON_TYPES).forEach(([typeKey, typeInfo]) => {
+        const btn = document.createElement('button');
+        btn.id = `pill-${typeKey}`;
+        btn.onclick = () => selectTypeFilter(typeKey);
+        btn.className = `px-3 py-1.5 rounded-xl text-xs font-bold transition-all border border-slate-700 bg-slate-950/70 text-slate-300 hover:border-slate-500 flex items-center gap-1.5`;
+        
+        btn.innerHTML = `
+          <span class="w-2.5 h-2.5 rounded-full" style="background-color: ${typeInfo.hex}"></span>
+          <span>${typeInfo.name}</span>
+        `;
+        container.appendChild(btn);
+      });
+    }
+
+    function selectTypeFilter(typeKey) {
+      playToneSound('click');
+      if (selectedType === typeKey) {
+        selectedType = null;
+      } else {
+        selectedType = typeKey;
+      }
+
+      // Update pills appearance
+      Object.keys(POKEMON_TYPES).forEach(k => {
+        const el = document.getElementById(`pill-${k}`);
+        if (el) {
+          if (selectedType === k) {
+            el.className = `px-3 py-1.5 rounded-xl text-xs font-bold transition-all border border-white text-white shadow-md flex items-center gap-1.5 ${POKEMON_TYPES[k].bg}`;
+          } else {
+            el.className = `px-3 py-1.5 rounded-xl text-xs font-bold transition-all border border-slate-700 bg-slate-950/70 text-slate-300 hover:border-slate-500 flex items-center gap-1.5`;
+          }
+        }
+      });
+
+      const resetBtn = document.getElementById('resetTypeBtn');
+      if (selectedType) {
+        resetBtn.classList.remove('hidden');
+      } else {
+        resetBtn.classList.add('hidden');
+      }
+
+      applyFilters();
+    }
+
+    function resetTypeFilter() {
+      playToneSound('click');
+      selectedType = null;
+      Object.keys(POKEMON_TYPES).forEach(k => {
+        const el = document.getElementById(`pill-${k}`);
+        if (el) {
+          el.className = `px-3 py-1.5 rounded-xl text-xs font-bold transition-all border border-slate-700 bg-slate-950/70 text-slate-300 hover:border-slate-500 flex items-center gap-1.5`;
+        }
+      });
+      document.getElementById('resetTypeBtn').classList.add('hidden');
+      applyFilters();
+    }
+
+    function handleGenChange(genKey) {
+      playToneSound('click');
+      currentGen = genKey;
+      applyFilters();
+    }
+
+    let searchTimeout = null;
+    function handleSearch(val) {
+      clearTimeout(searchTimeout);
+      searchTimeout = setTimeout(() => {
+        searchQuery = val.trim().toLowerCase();
+        const clearBtn = document.getElementById('clearSearchBtn');
+        if (searchQuery.length > 0) {
+          clearBtn.classList.remove('hidden');
+        } else {
+          clearBtn.classList.add('hidden');
+        }
+        applyFilters();
+      }, 300);
+    }
+
+    function clearSearch() {
+      document.getElementById('searchInput').value = '';
+      searchQuery = '';
+      document.getElementById('clearSearchBtn').classList.add('hidden');
+      applyFilters();
+    }
+
+    function toggleFavoritesFilter() {
+      playToneSound('click');
+      isFavoritesOnly = !isFavoritesOnly;
+      const btn = document.getElementById('favoritesTabBtn');
+      if (isFavoritesOnly) {
+        btn.classList.add('bg-amber-500/20', 'border-amber-400', 'text-amber-300');
+        showToast('お気に入りのポケモンのみ表示中', '★');
+      } else {
+        btn.classList.remove('bg-amber-500/20', 'border-amber-400', 'text-amber-300');
+      }
+      applyFilters();
+    }
+
+    async function applyFilters() {
+      const genRange = GENERATIONS[currentGen] || GENERATIONS.all;
+      
+      // Step 1: Base slice by generation
+      let filtered = allPokemonEntries.filter(p => p.id >= genRange.start && p.id <= genRange.end);
+
+      // Step 2: Favorites filter
+      if (isFavoritesOnly) {
+        filtered = filtered.filter(p => favorites.has(p.id));
+      }
+
+      // Step 3: Search filter by ID or English name first
+      if (searchQuery) {
+        const isNum = !isNaN(searchQuery);
+        if (isNum) {
+          const searchNum = parseInt(searchQuery, 10);
+          filtered = filtered.filter(p => p.id === searchNum);
+        } else {
+          // If query is katakana/hiragana or english, match with species cache or english name
+          filtered = filtered.filter(p => {
+            if (p.name.includes(searchQuery)) return true;
+            const species = speciesDataCache.get(p.id);
+            if (species && species.jaName && species.jaName.toLowerCase().includes(searchQuery)) return true;
+            return false;
+          });
+        }
+      }
+
+      // Step 4: Type filtering (needs pokemon basic data if available)
+      if (selectedType) {
+        // Filter by types using cached pokemon data or filter dynamically
+        filtered = filtered.filter(p => {
+          const cached = pokemonDataCache.get(p.id);
+          if (!cached) return true; // Let them pass if not yet fetched, will check during render
+          return cached.types.some(t => t.type.name === selectedType);
+        });
+      }
+
+      filteredPokemonList = filtered;
+      renderedCount = 0;
+      
+      // Update result count label
+      document.getElementById('resultCount').textContent = `${filteredPokemonList.length} 匹`;
+
+      const grid = document.getElementById('pokemonGrid');
+      grid.innerHTML = '';
+
+      if (filteredPokemonList.length === 0) {
+        grid.innerHTML = `
+          <div class="col-span-full py-16 text-center text-slate-400 flex flex-col items-center">
+            <span class="text-4xl mb-3">🔍</span>
+            <p class="text-base font-bold text-slate-300">条件に合致するポケモンが見つかりませんでした</p>
+            <p class="text-xs text-slate-500 mt-1">検索ワードやフィルターを変更してお試しください。</p>
+          </div>
+        `;
+        document.getElementById('loadMoreBtn').classList.add('hidden');
+        document.getElementById('loaderSpinner').classList.add('hidden');
+        return;
+      }
+
+      loadNextBatch();
+    }
+
+    async function loadNextBatch() {
+      const spinner = document.getElementById('loaderSpinner');
+      const moreBtn = document.getElementById('loadMoreBtn');
+      spinner.classList.remove('hidden');
+      moreBtn.classList.add('hidden');
+
+      const nextSlice = filteredPokemonList.slice(renderedCount, renderedCount + BATCH_SIZE);
+      if (nextSlice.length === 0) {
+        spinner.classList.add('hidden');
+        return;
+      }
+
+      // Parallel fetch pokemon details and species for the slice
+      const cardPromises = nextSlice.map(item => fetchPokemonCombinedData(item.id));
+      const loadedDataList = await Promise.all(cardPromises);
+
+      const grid = document.getElementById('pokemonGrid');
+
+      loadedDataList.forEach(data => {
+        if (!data) return;
+        // If type filter is active and data wasn't filtered previously, check now
+        if (selectedType && !data.pokemon.types.some(t => t.type.name === selectedType)) {
+          return;
+        }
+
+        const card = createPokemonCardElement(data);
+        grid.appendChild(card);
+      });
+
+      renderedCount += nextSlice.length;
+      spinner.classList.add('hidden');
+
+      if (renderedCount < filteredPokemonList.length) {
+        moreBtn.classList.remove('hidden');
+      }
+    }
+
+    async function fetchPokemonCombinedData(id) {
+      try {
+        let pokemon = pokemonDataCache.get(id);
+        if (!pokemon) {
+          const pRes = await fetch(`https://pokeapi.co/api/v2/pokemon/${id}`);
+          pokemon = await pRes.json();
+          pokemonDataCache.set(id, pokemon);
+        }
+
+        let species = speciesDataCache.get(id);
+        if (!species) {
+          const sRes = await fetch(`https://pokeapi.co/api/v2/pokemon-species/${id}`);
+          const sData = await sRes.json();
+
+          // Extract Japanese name (prefers 'ja' kanji/kana, fallbacks to 'ja-Hrkt')
+          const jaNameObj = sData.names.find(n => n.language.name === 'ja') || 
+                            sData.names.find(n => n.language.name === 'ja-Hrkt');
+          const jaName = jaNameObj ? jaNameObj.name : pokemon.name;
+
+          // Extract Japanese genera (classification, e.g. たねポケモン)
+          const jaGeneraObj = sData.genera.find(g => g.language.name === 'ja') || 
+                              sData.genera.find(g => g.language.name === 'ja-Hrkt');
+          const jaGenera = jaGeneraObj ? jaGeneraObj.genus : 'ポケモン';
+
+          // Extract Japanese flavor text
+          const jaFlavorObj = sData.flavor_text_entries.find(f => f.language.name === 'ja') ||
+                              sData.flavor_text_entries.find(f => f.language.name === 'ja-Hrkt');
+          const jaFlavor = jaFlavorObj ? jaFlavorObj.flavor_text.replace(/\f|\n/g, ' ') : '詳しい解説文は現在調査中です。';
+
+          species = {
+            jaName,
+            jaGenera,
+            jaFlavor,
+            color: sData.color?.name || 'red',
+          };
+          speciesDataCache.set(id, species);
+        }
+
+        return { pokemon, species };
+      } catch (err) {
+        console.error(`Error loading data for #${id}`, err);
+        return null;
+      }
+    }
+
+    function createPokemonCardElement({ pokemon, species }) {
+      const card = document.createElement('div');
+      card.id = `poke-card-${pokemon.id}`;
+      
+      const primaryTypeKey = pokemon.types[0].type.name;
+      const typeInfo = POKEMON_TYPES[primaryTypeKey] || POKEMON_TYPES.normal;
+      const paddedId = String(pokemon.id).padStart(4, '0');
+      const isFav = favorites.has(pokemon.id);
+
+      // Official artwork sprite
+      const artworkUrl = pokemon.sprites.other?.['official-artwork']?.front_default || 
+                         pokemon.sprites.front_default || 
+                         'https://placehold.co/200x200/1e293b/ffffff?text=Pokemon';
+
+      card.className = `group relative bg-slate-900/90 hover:bg-slate-850 rounded-2xl p-3 sm:p-4 border border-slate-800/80 hover:border-slate-600 transition-all duration-300 hover:-translate-y-1.5 shadow-lg hover:shadow-2xl cursor-pointer flex flex-col justify-between overflow-hidden`;
+
+      card.onclick = (e) => {
+        // Avoid opening modal if favorite star clicked
+        if (e.target.closest('.fav-btn')) return;
+        openDetailModal(pokemon.id);
+      };
+
+      // Type badges markup
+      const typeBadges = pokemon.types.map(t => {
+        const info = POKEMON_TYPES[t.type.name] || POKEMON_TYPES.normal;
+        return `<span class="text-[10px] sm:text-xs font-bold px-2 py-0.5 rounded-md ${info.bg} ${info.text} shadow-sm">${info.name}</span>`;
+      }).join('');
+
+      card.innerHTML = `
+        <!-- Top row: ID & Favorite Button -->
+        <div class="flex items-center justify-between z-10">
+          <span class="text-[11px] sm:text-xs font-black text-slate-500 group-hover:text-rose-400 transition-colors">
+            No.${paddedId}
+          </span>
+          <button class="fav-btn p-1 text-slate-600 hover:text-amber-400 transition-colors" onclick="toggleCardFavorite(${pokemon.id}, event)">
+            <span class="${isFav ? 'text-amber-400' : 'text-slate-600'} text-base">★</span>
+          </button>
+        </div>
+
+        <!-- Artwork Visual with Ambient Glow -->
+        <div class="relative w-full aspect-square flex items-center justify-center my-1 sm:my-2">
+          <div class="absolute inset-2 rounded-full opacity-10 group-hover:opacity-30 transition-opacity blur-xl" style="background-color: ${typeInfo.hex}"></div>
+          <img 
+            src="${artworkUrl}" 
+            alt="${species.jaName}" 
+            loading="lazy" 
+            class="relative z-10 max-w-[85%] max-h-[85%] object-contain filter drop-shadow-md group-hover:scale-110 transition-transform duration-300"
+            onerror="this.src='https://placehold.co/150x150/1e293b/ffffff?text=Pokemon'"
+          >
+        </div>
+
+        <!-- Pokemon Info & Types -->
+        <div class="z-10 text-center">
+          <h3 class="text-sm sm:text-base font-black text-white group-hover:text-rose-300 transition-colors truncate">
+            ${species.jaName}
+          </h3>
+          <p class="text-[10px] text-slate-500 font-medium truncate mb-2">
+            ${pokemon.name.toUpperCase()}
+          </p>
+          <div class="flex items-center justify-center gap-1 flex-wrap">
+            ${typeBadges}
+          </div>
+        </div>
+      `;
+
+      return card;
+    }
+
+    async function openDetailModal(id) {
+      playToneSound('open');
+      const modal = document.getElementById('detailModal');
+      const combined = await fetchPokemonCombinedData(id);
+      if (!combined) return;
+
+      const { pokemon, species } = combined;
+      activeModalPokemon = pokemon;
+      isShowingShiny = false;
+
+      const paddedId = String(pokemon.id).padStart(4, '0');
+      const primaryTypeKey = pokemon.types[0].type.name;
+      const typeInfo = POKEMON_TYPES[primaryTypeKey] || POKEMON_TYPES.normal;
+
+      // Set titles & tags
+      document.getElementById('modalId').textContent = `No.${paddedId}`;
+      document.getElementById('modalGenera').textContent = species.jaGenera;
+      document.getElementById('modalName').textContent = species.jaName;
+      document.getElementById('modalEnName').textContent = `${pokemon.name.toUpperCase()} (全国図鑑 #${pokemon.id})`;
+      document.getElementById('modalFlavorText').textContent = species.jaFlavor;
+      document.getElementById('modalHeight').textContent = `${(pokemon.height / 10).toFixed(1)} m`;
+      document.getElementById('modalWeight').textContent = `${(pokemon.weight / 10).toFixed(1)} kg`;
+
+      // Header colored background based on type
+      const headerBg = document.getElementById('modalHeaderBg');
+      headerBg.style.background = `linear-gradient(135deg, ${typeInfo.hex}dd 0%, #0f172a 100%)`;
+      document.getElementById('modalArtworkGlow').style.backgroundColor = typeInfo.hex;
+
+      // Types list
+      const typesContainer = document.getElementById('modalTypes');
+      typesContainer.innerHTML = pokemon.types.map(t => {
+        const info = POKEMON_TYPES[t.type.name] || POKEMON_TYPES.normal;
+        return `<span class="text-xs font-bold px-3 py-1 rounded-lg ${info.bg} ${info.text} shadow">${info.name}</span>`;
+      }).join('');
+
+      // Artwork and Shiny Switchers
+      updateModalArtwork();
+
+      // Stats bars rendering
+      renderModalStats(pokemon.stats);
+
+      // Favorite state in modal
+      updateModalFavButton();
+
+      // Show modal
+      modal.classList.remove('opacity-0', 'pointer-events-none');
+      modal.querySelector('.transform').classList.remove('scale-95');
+      modal.querySelector('.transform').classList.add('scale-100');
+    }
+
+    function closeDetailModal() {
+      playToneSound('click');
+      const modal = document.getElementById('detailModal');
+      modal.classList.add('opacity-0', 'pointer-events-none');
+      modal.querySelector('.transform').classList.add('scale-95');
+      modal.querySelector('.transform').classList.remove('scale-100');
+      if (currentAudioElement) {
+        currentAudioElement.pause();
+      }
+    }
+
+    const STAT_NAMES_JA = {
+      'hp':              { name: 'HP', color: 'bg-emerald-500' },
+      'attack':          { name: 'こうげき', color: 'bg-orange-500' },
+      'defense':         { name: 'ぼうぎょ', color: 'bg-amber-500' },
+      'special-attack':  { name: 'とくこう', color: 'bg-sky-500' },
+      'special-defense': { name: 'とくぼう', color: 'bg-indigo-500' },
+      'speed':           { name: 'すばやさ', color: 'bg-rose-500' },
+    };
+
+    function renderModalStats(stats) {
+      const container = document.getElementById('modalStatsBars');
+      container.innerHTML = '';
+      let total = 0;
+
+      stats.forEach(st => {
+        const base = st.base_stat;
+        total += base;
+        const statConf = STAT_NAMES_JA[st.stat.name] || { name: st.stat.name, color: 'bg-slate-500' };
+        
+        // Percent of max reasonable stat (~255)
+        const percent = Math.min(100, Math.round((base / 255) * 100));
+
+        const row = document.createElement('div');
+        row.className = 'flex items-center gap-3';
+        row.innerHTML = `
+          <div class="w-20 text-slate-300 font-bold text-[11px]">${statConf.name}</div>
+          <div class="w-9 font-black text-white text-right">${base}</div>
+          <div class="flex-1 bg-slate-800 h-2.5 rounded-full overflow-hidden p-0.5 border border-slate-700/60">
+            <div class="h-full rounded-full ${statConf.color} transition-all duration-700" style="width: ${percent}%"></div>
+          </div>
+        `;
+        container.appendChild(row);
+      });
+
+      document.getElementById('modalStatTotal').textContent = total;
+    }
+
+    function toggleModalShiny(showShiny) {
+      playToneSound('click');
+      isShowingShiny = showShiny;
+      const normalBtn = document.getElementById('viewNormalBtn');
+      const shinyBtn = document.getElementById('viewShinyBtn');
+
+      if (isShowingShiny) {
+        shinyBtn.className = 'px-3 py-1 rounded-full bg-amber-500 text-slate-950 font-bold transition-all shadow-md';
+        normalBtn.className = 'px-3 py-1 rounded-full text-slate-400 hover:text-white transition-all';
+      } else {
+        normalBtn.className = 'px-3 py-1 rounded-full bg-rose-600 text-white font-bold transition-all shadow-md';
+        shinyBtn.className = 'px-3 py-1 rounded-full text-slate-400 hover:text-white transition-all';
+      }
+      updateModalArtwork();
+    }
+
+    function updateModalArtwork() {
+      if (!activeModalPokemon) return;
+      const img = document.getElementById('modalImg');
+      
+      if (isShowingShiny) {
+        img.src = activeModalPokemon.sprites.other?.['official-artwork']?.front_shiny || 
+                  activeModalPokemon.sprites.front_shiny || 
+                  activeModalPokemon.sprites.front_default;
+      } else {
+        img.src = activeModalPokemon.sprites.other?.['official-artwork']?.front_default || 
+                  activeModalPokemon.sprites.front_default;
+      }
+    }
+
+    function playCurrentCry() {
+      if (!activeModalPokemon) return;
+      // PokéAPI GitHub audio repository for latest cries
+      const cryUrl = `https://raw.githubusercontent.com/PokeAPI/cries/main/cries/pokemon/latest/${activeModalPokemon.id}.ogg`;
+      
+      if (currentAudioElement) {
+        currentAudioElement.pause();
+      }
+
+      currentAudioElement = new Audio(cryUrl);
+      currentAudioElement.volume = 0.5;
+      
+      const btn = document.getElementById('modalCryBtn');
+      btn.classList.add('animate-bounce', 'text-emerald-400');
+      
+      currentAudioElement.play()
+        .then(() => {
+          showToast(`${document.getElementById('modalName').textContent}のなきごえ再生中`, '🔊');
+        })
+        .catch(err => {
+          console.warn('Audio play prevented or unavailable', err);
+          showToast('なきごえの再生ができませんでした', '🔇');
+        })
+        .finally(() => {
+          setTimeout(() => {
+            btn.classList.remove('animate-bounce', 'text-emerald-400');
+          }, 1000);
+        });
+    }
+
+    function toggleCardFavorite(id, event) {
+      if (event) event.stopPropagation();
+      playToneSound('fav');
+      
+      if (favorites.has(id)) {
+        favorites.delete(id);
+        showToast('お気に入りから解除しました', '☆');
+      } else {
+        favorites.add(id);
+        showToast('お気に入りに追加しました！', '★');
+      }
+
+      saveFavorites();
+      updateFavoritesBadge();
+
+      // Update card star icon
+      const card = document.getElementById(`poke-card-${id}`);
+      if (card) {
+        const star = card.querySelector('.fav-btn span');
+        if (star) {
+          star.className = favorites.has(id) ? 'text-amber-400 text-base' : 'text-slate-600 text-base';
+        }
+      }
+
+      if (isFavoritesOnly) {
+        applyFilters();
+      }
+    }
+
+    function toggleModalFavorite() {
+      if (!activeModalPokemon) return;
+      toggleCardFavorite(activeModalPokemon.id);
+      updateModalFavButton();
+    }
+
+    function updateModalFavButton() {
+      if (!activeModalPokemon) return;
+      const isFav = favorites.has(activeModalPokemon.id);
+      const btn = document.getElementById('modalFavBtn');
+      if (isFav) {
+        btn.innerHTML = '★';
+        btn.className = 'w-10 h-10 rounded-full bg-amber-500/20 text-amber-400 border border-amber-400/50 flex items-center justify-center text-lg transition-transform active:scale-90';
+      } else {
+        btn.innerHTML = '☆';
+        btn.className = 'w-10 h-10 rounded-full bg-black/40 hover:bg-black/60 text-slate-400 flex items-center justify-center text-lg transition-transform active:scale-90 border border-white/10';
+      }
+    }
+
+    function saveFavorites() {
+      try {
+        localStorage.setItem('pokedex_favorites', JSON.stringify(Array.from(favorites)));
+      } catch (e) {
+        console.warn('Storage save failed');
+      }
+    }
+
+    function updateFavoritesBadge() {
+      const badge = document.getElementById('favoritesBadge');
+      if (badge) {
+        badge.textContent = favorites.size;
+      }
+    }
+
+    let toastTimeout = null;
+    function showToast(message, icon = '💡') {
+      const toast = document.getElementById('toast');
+      const msgEl = document.getElementById('toastMsg');
+      const iconEl = document.getElementById('toastIcon');
+
+      clearTimeout(toastTimeout);
+      msgEl.textContent = message;
+      iconEl.textContent = icon;
+
+      toast.classList.remove('translate-y-20', 'opacity-0', 'pointer-events-none');
+      toast.classList.add('translate-y-0', 'opacity-100');
+
+      toastTimeout = setTimeout(() => {
+        toast.classList.add('translate-y-20', 'opacity-0', 'pointer-events-none');
+        toast.classList.remove('translate-y-0', 'opacity-100');
+      }, 2500);
+    }
+
+    // Close modal on Escape key press
+    window.addEventListener('keydown', (e) => {
+      if (e.key === 'Escape') {
+        closeDetailModal();
+      }
+    });
+
+    // Start initialization when page is ready
+    window.onload = function() {
+      initPokedex();
+    };
+  </script>
+</body>
+</html>
